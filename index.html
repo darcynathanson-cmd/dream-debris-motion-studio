@@ -1222,7 +1222,8 @@
     function flushCapturedLayers(target){
       captureActive=false;
       const scope=captureScope,prefs=compositionFor(scope),base=[...captureCommands],extrasForScope=extraLayers[scope]||[];
-      const shapeScope=scope.startsWith('shape:');
+      const shapeScope=scope.startsWith('shape:'),studyScope=scope.startsWith('study:');
+      if(studyScope&&prefs.compositionVersion!==2){prefs.density=base.length;prefs.compositionVersion=2;}
       let desired=shapeScope?1+prefs.echoCount:clamp(prefs.density??base.length,1,8);if(prefs.density==null)prefs.density=base.length;
       const source=base[base.length-1]||base[0];
       const strongest=new Set([...base].sort((a,b)=>b.alpha-a.alpha).slice(0,Math.min(desired,base.length)).map(command=>command.id));
@@ -1485,29 +1486,47 @@
         const motionIndex=studyMotionIndex++,hero=motionIndex===0,relationship=studyMotion==='touch'||studyMotion==='veil';
         return {...scene,motionIdea:hero||relationship?studyMotion:null,motionIndex,motionTime:t,motionAmount:hero?1:.12};
       };
+      const roleBox=(cx,cy,w,h)=>({x:(cx-w*.5)*W,y:(cy-h*.5)*H,w:w*W,h:h*H,round:false,clip:false});
+      const studyBridges=[
+        {object:'Aura',cx:.54,cy:.51,w:.46,h:.40,rot:-4},{object:'Moon',cx:.51,cy:.51,w:.36,h:.32,rot:6},
+        {object:'Aura',cx:.57,cy:.45,w:.46,h:.38,rot:-7},{object:'Nautilus',cx:.51,cy:.48,w:.38,h:.35,rot:8},null,
+        {object:'Ripples',cx:.51,cy:.48,w:.58,h:.31,rot:-5},{object:'Cloud',cx:.56,cy:.44,w:.47,h:.36,rot:7},
+        {object:'Aura',cx:.53,cy:.57,w:.42,h:.35,rot:-6},{object:'Moon',cx:.45,cy:.53,w:.34,h:.30,rot:5},
+        {object:'Cloud',cx:.50,cy:.53,w:.46,h:.34,rot:-7},{object:'Aura',cx:.52,cy:.46,w:.43,h:.37,rot:6},null
+      ];
+      const echoTrail=(scene,from,to,w,h)=>{
+        for(let index=3;index>=1;index--){
+          const progress=index/4,ease=smooth(progress),scale=.48+progress*.30;
+          const echoScene={...scene,tint:studyTint(index),rot:(scene.rot||0)+(index-2)*6,blurScale:1.02+index*.18,motionAmount:.08,motionIndex:studyMotionIndex++};
+          const cx=lerp(from[0],to[0],ease),cy=lerp(from[1],to[1],ease)+Math.sin(index*1.7)*.018;
+          drawMotifLayer(target,echoScene,t+index*.34,.14+index*.028,index===1?'far':'middle',roleBox(cx,cy,w*scale,h*scale));
+        }
+      };
 
       if(page===0){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.24),breath,1);
         const moth=animatedStudyScene({...scenes[3],object:studyObject(0,'Moth'),tint:studyTint(0),rot:-11,blurScale:.46});
         const cloud=animatedStudyScene({...scenes[2],object:studyObject(1,'Cloud'),tint:studyTint(1),rot:7,blurScale:1.18});
         const moon=animatedStudyScene({...scenes[2],object:studyObject(2,'Nautilus'),tint:studyTint(2),rot:-8,blurScale:.42});
-        const mothBox={x:-W*.40,y:H*.10,w:W*1.46,h:H*1.18,round:false,clip:false};
-        drawMotifLayer(target,cloud,t+.9,.30,'far',{x:W*.38,y:-H*.12,w:W*.88,h:H*.46,round:false,clip:false});
-        drawMotifLayer(target,moth,t,.34,'far',mothBox);
-        drawMotifLayer(target,moth,t,1,'middle',mothBox);
-        drawMotifLayer(target,moth,t,.28,'near',mothBox);
-        drawMotifLayer(target,moon,t+1.8,.62,'near',{x:W*.72,y:H*.72,w:W*.24,h:H*.22,round:false,clip:false});
+        const mothBox=roleBox(.31,.61,.88,.82);
+        echoTrail(moth,[.32,.58],[.76,.70],.52,.48);
+        drawMotifLayer(target,cloud,t+.9,.25,'far',roleBox(.72,.20,.70,.36));
+        drawMotifLayer(target,moth,t,.22,'far',roleBox(.35,.58,.94,.88));
+        drawMotifLayer(target,moth,t,.84,'middle',mothBox);
+        drawMotifLayer(target,moth,t+.28,.16,'near',roleBox(.27,.65,.82,.76));
+        drawMotifLayer(target,moon,t+1.8,.58,'near',roleBox(.76,.70,.35,.31));
       }
 
       if(page===1){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.38),breath,1);
         const fern=animatedStudyScene({...scenes[3],object:studyObject(0,'Fern'),tint:studyTint(0),rot:-18,blurScale:.42});
         const eucalyptus=animatedStudyScene({...scenes[0],object:studyObject(1,'Eucalyptus'),tint:studyTint(1),rot:13,blurScale:1.15});
-        const fernBox={x:-W*.34,y:-H*.14,w:W*1.18,h:H*1.24,round:false,clip:false};
-        drawMotifLayer(target,eucalyptus,t+.9,.32,'far',{x:W*.47,y:-H*.02,w:W*.64,h:H*1.04,round:false,clip:false});
-        drawMotifLayer(target,fern,t,.32,'far',fernBox);
-        drawMotifLayer(target,fern,t,1,'middle',fernBox);
-        drawMotifLayer(target,fern,t,.36,'near',fernBox);
+        const fernBox=roleBox(.31,.60,.80,.90);
+        echoTrail(fern,[.31,.61],[.70,.44],.46,.57);
+        drawMotifLayer(target,eucalyptus,t+.9,.30,'far',roleBox(.70,.44,.62,.82));
+        drawMotifLayer(target,fern,t,.20,'far',roleBox(.36,.56,.88,.96));
+        drawMotifLayer(target,fern,t,.82,'middle',fernBox);
+        drawMotifLayer(target,fern,t+.30,.15,'near',roleBox(.26,.66,.74,.84));
       }
 
       if(page===2){
@@ -1515,12 +1534,13 @@
         const current=animatedStudyScene({...scenes[3],object:studyObject(0,'Fern'),tint:studyTint(0),rot:82,blurScale:.46});
         const ripples=animatedStudyScene({...scenes[0],object:studyObject(1,'Ripples'),tint:studyTint(1),rot:5,blurScale:1.25});
         const cloud=animatedStudyScene({...scenes[2],object:studyObject(2,'Cloud'),tint:studyTint(2),rot:-8,blurScale:1.25});
-        const currentBox={x:-W*.34,y:H*.03,w:W*1.70,h:H*.88,round:false,clip:false};
-        drawMotifLayer(target,cloud,t+1.1,.22,'far',{x:W*.45,y:-H*.10,w:W*.82,h:H*.40,round:false,clip:false});
-        drawMotifLayer(target,current,t,.42,'far',currentBox);
-        drawMotifLayer(target,current,t,1,'middle',currentBox);
-        drawMotifLayer(target,current,t,.24,'near',currentBox);
-        drawMotifLayer(target,ripples,t+.8,.28,'far',{x:-W*.15,y:H*.67,w:W*1.28,h:H*.34,round:false,clip:false});
+        const currentBox=roleBox(.45,.51,1.14,.56);
+        echoTrail(current,[.35,.57],[.72,.20],.60,.32);
+        drawMotifLayer(target,cloud,t+1.1,.22,'far',roleBox(.72,.18,.64,.31));
+        drawMotifLayer(target,current,t,.18,'far',roleBox(.41,.49,1.22,.61));
+        drawMotifLayer(target,current,t,.76,'middle',currentBox);
+        drawMotifLayer(target,current,t+.24,.14,'near',roleBox(.50,.55,1.05,.51));
+        drawMotifLayer(target,ripples,t+.8,.38,'far',roleBox(.48,.80,1.08,.29));
       }
 
       if(page===3){
@@ -1528,26 +1548,28 @@
         const daisy=animatedStudyScene({...scenes[4],object:studyObject(0,'Daisy'),tint:studyTint(0),rot:-14,blurScale:.45});
         const fern=animatedStudyScene({...scenes[3],object:studyObject(1,'Fern'),tint:studyTint(1),rot:17,blurScale:.40});
         const flower=animatedStudyScene({...scenes[4],object:studyObject(2,'Flower'),tint:studyTint(2),rot:10,blurScale:1.18});
-        const daisyBox={x:-W*.53,y:H*.12,w:W*1.30,h:H*1.10,round:false,clip:false};
-        drawMotifLayer(target,flower,t+.9,.28,'far',{x:W*.42,y:-H*.16,w:W*.88,h:H*.86,round:false,clip:false});
-        drawMotifLayer(target,daisy,t,.34,'far',daisyBox);
-        drawMotifLayer(target,daisy,t,1,'middle',daisyBox);
-        drawMotifLayer(target,fern,t+1.4,.66,'near',{x:W*.56,y:-H*.12,w:W*.58,h:H*.90,round:false,clip:false});
+        const daisyBox=roleBox(.30,.64,.82,.74);
+        echoTrail(daisy,[.30,.64],[.73,.55],.44,.42);
+        drawMotifLayer(target,flower,t+.9,.26,'far',roleBox(.74,.24,.56,.49));
+        drawMotifLayer(target,daisy,t,.20,'far',roleBox(.34,.61,.90,.80));
+        drawMotifLayer(target,daisy,t,.82,'middle',daisyBox);
+        drawMotifLayer(target,daisy,t+.28,.14,'near',roleBox(.25,.68,.76,.68));
+        drawMotifLayer(target,fern,t+1.4,.56,'near',roleBox(.73,.56,.47,.68));
       }
 
       if(page===4){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.30),breath,1);
         const ghosts=[
-          {x:-.28,y:.04,w:1.28,h:1.04,tint:studyTint(0),rot:-18,layer:'far',alpha:.48,delay:0,blurScale:.82},
-          {x:-.02,y:.14,w:1.24,h:1.00,tint:studyTint(1),rot:-3,layer:'middle',alpha:.82,delay:.65,blurScale:.48},
-          {x:.22,y:.24,w:1.18,h:.96,tint:studyTint(2),rot:12,layer:'near',alpha:.50,delay:1.3,blurScale:.34}
+          {cx:.28,cy:.43,w:.78,h:.68,tint:studyTint(0),rot:-18,layer:'far',alpha:.30,delay:0,blurScale:.96},
+          {cx:.50,cy:.54,w:.74,h:.66,tint:studyTint(1),rot:-3,layer:'middle',alpha:.76,delay:.65,blurScale:.54},
+          {cx:.72,cy:.65,w:.68,h:.61,tint:studyTint(2),rot:12,layer:'near',alpha:.36,delay:1.3,blurScale:.40}
         ];
         ghosts.forEach((p,i)=>{
           const motionWeight=i===0?1:.12;
           const orbitX=Math.cos(TAU*phase+i*.8)*W*.050*settings.motion*motionWeight;
           const orbitY=Math.sin(TAU*phase+i*.8)*H*.014*settings.motion*motionWeight;
           const trace=animatedStudyScene({...scenes[2],object:studyObject(0,'Nautilus'),tint:p.tint,rot:p.rot,blurScale:p.blurScale});
-          const box={x:p.x*W+orbitX,y:p.y*H+orbitY,w:p.w*W,h:p.h*H,round:false,clip:false};
+          const box=roleBox(p.cx+orbitX/W,p.cy+orbitY/H,p.w,p.h);
           drawMotifLayer(target,trace,t+p.delay,p.alpha,p.layer,box);
         });
       }
@@ -1556,79 +1578,91 @@
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.18),breath,1);
         const cloud=animatedStudyScene({...scenes[1],object:studyObject(0,'Cloud'),tint:studyTint(0),rot:-8,blurScale:1.15});
         const aura=animatedStudyScene({...scenes[1],object:studyObject(1,'Aura'),tint:studyTint(1),rot:5,blurScale:.62});
-        const cloudBox={x:-W*.42,y:-H*.08,w:W*1.72,h:H*1.14,round:false,clip:false};
-        drawMotifLayer(target,cloud,t,.68,'far',cloudBox);
-        drawMotifLayer(target,cloud,t+.6,.38,'middle',cloudBox);
-        drawMotifLayer(target,aura,t+1.2,.34,'far',{x:W*.26,y:H*.18,w:W*1.12,h:H*.96,round:false,clip:false});
-        drawMotifLayer(target,aura,t+1.2,.78,'middle',{x:W*.26,y:H*.18,w:W*1.12,h:H*.96,round:false,clip:false});
+        const cloudBox=roleBox(.34,.44,.92,.66),auraBox=roleBox(.68,.60,.70,.62);
+        echoTrail(cloud,[.32,.43],[.68,.60],.50,.40);
+        drawMotifLayer(target,cloud,t,.42,'far',roleBox(.30,.41,1.00,.72));
+        drawMotifLayer(target,cloud,t+.6,.70,'middle',cloudBox);
+        drawMotifLayer(target,aura,t+1.2,.24,'far',roleBox(.72,.57,.78,.68));
+        drawMotifLayer(target,aura,t+1.2,.64,'middle',auraBox);
       }
 
       if(page===6){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.20),breath,1);
         const arch=animatedStudyScene({...scenes[0],object:studyObject(0,'Arch'),tint:studyTint(0),rot:-4,blurScale:.44});
         const moon=animatedStudyScene({...scenes[2],object:studyObject(1,'Moon'),tint:studyTint(1),rot:7,blurScale:.46});
-        const archBox={x:-W*.38,y:H*.04,w:W*1.46,h:H*1.24,round:false,clip:false};
-        drawMotifLayer(target,arch,t,.34,'far',archBox);
-        drawMotifLayer(target,arch,t,1,'middle',archBox);
-        drawMotifLayer(target,arch,t,.30,'near',archBox);
-        drawMotifLayer(target,moon,t+1.2,.54,'near',{x:W*.69,y:-H*.02,w:W*.34,h:H*.31,round:false,clip:false});
+        const archBox=roleBox(.37,.63,.86,.88);
+        echoTrail(arch,[.37,.63],[.76,.25],.44,.49);
+        drawMotifLayer(target,arch,t,.20,'far',roleBox(.41,.58,.94,.96));
+        drawMotifLayer(target,arch,t,.82,'middle',archBox);
+        drawMotifLayer(target,arch,t+.28,.15,'near',roleBox(.32,.68,.78,.80));
+        drawMotifLayer(target,moon,t+1.2,.58,'near',roleBox(.76,.25,.38,.34));
       }
 
       if(page===7){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.38),breath,1);
         const droplet=animatedStudyScene({...scenes[1],object:studyObject(0,'Droplet'),tint:studyTint(0),rot:7,blurScale:.42});
         const wave=animatedStudyScene({...scenes[0],object:studyObject(1,'Wave'),tint:studyTint(1),rot:-5,blurScale:.72});
-        const dropBox={x:W*.08,y:-H*.30,w:W*1.08,h:H*1.12,round:false,clip:false};
-        drawMotifLayer(target,droplet,t,.32,'far',dropBox);
-        drawMotifLayer(target,droplet,t,1,'middle',dropBox);
-        drawMotifLayer(target,droplet,t,.32,'near',dropBox);
-        drawMotifLayer(target,wave,t+1.1,.48,'middle',{x:-W*.28,y:H*.58,w:W*1.55,h:H*.48,round:false,clip:false});
+        const dropBox=roleBox(.37,.40,.76,.70);
+        echoTrail(droplet,[.37,.40],[.66,.73],.42,.40);
+        drawMotifLayer(target,droplet,t,.20,'far',roleBox(.41,.37,.84,.77));
+        drawMotifLayer(target,droplet,t,.82,'middle',dropBox);
+        drawMotifLayer(target,droplet,t+.26,.15,'near',roleBox(.32,.45,.69,.64));
+        drawMotifLayer(target,wave,t+1.1,.58,'middle',roleBox(.52,.76,1.10,.31));
       }
 
       if(page===8){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.20),breath,1);
         const cairn=animatedStudyScene({...scenes[0],object:studyObject(0,'Cairn'),tint:studyTint(0),rot:-5,blurScale:.46});
         const grass=animatedStudyScene({...scenes[3],object:studyObject(1,'Grass'),tint:studyTint(1),rot:9,blurScale:.72});
-        drawMotifLayer(target,grass,t+.8,.42,'middle',{x:-W*.32,y:-H*.22,w:W*1.24,h:H*1.10,round:false,clip:false});
-        const cairnBox={x:-W*.22,y:H*.24,w:W*1.36,h:H*.92,round:false,clip:false};
-        drawMotifLayer(target,cairn,t,.38,'far',cairnBox);
-        drawMotifLayer(target,cairn,t,1,'middle',cairnBox);
-        drawMotifLayer(target,cairn,t,.30,'near',cairnBox);
+        echoTrail(cairn,[.58,.68],[.31,.37],.43,.36);
+        drawMotifLayer(target,grass,t+.8,.38,'middle',roleBox(.31,.37,.70,.78));
+        const cairnBox=roleBox(.58,.68,.82,.59);
+        drawMotifLayer(target,cairn,t,.20,'far',roleBox(.62,.64,.90,.65));
+        drawMotifLayer(target,cairn,t,.82,'middle',cairnBox);
+        drawMotifLayer(target,cairn,t+.28,.15,'near',roleBox(.54,.73,.74,.54));
       }
 
       if(page===9){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.22),breath,1);
         const pine=animatedStudyScene({...scenes[3],object:studyObject(0,'Pine'),tint:studyTint(0),rot:8,blurScale:.44});
         const ringShape=animatedStudyScene({...scenes[0],object:studyObject(1,'Ring'),tint:studyTint(1),rot:-7,blurScale:.62});
-        drawMotifLayer(target,ringShape,t+.8,.38,'middle',{x:-W*.52,y:H*.06,w:W*1.30,h:H*1.02,round:false,clip:false});
-        const pineBox={x:W*.02,y:-H*.24,w:W*1.22,h:H*1.34,round:false,clip:false};
-        drawMotifLayer(target,pine,t,.30,'far',pineBox);
-        drawMotifLayer(target,pine,t,1,'middle',pineBox);
-        drawMotifLayer(target,pine,t,.28,'near',pineBox);
+        echoTrail(pine,[.68,.48],[.31,.60],.42,.50);
+        drawMotifLayer(target,ringShape,t+.8,.48,'middle',roleBox(.31,.60,.70,.64));
+        const pineBox=roleBox(.68,.48,.72,.88);
+        drawMotifLayer(target,pine,t,.20,'far',roleBox(.72,.44,.80,.96));
+        drawMotifLayer(target,pine,t,.82,'middle',pineBox);
+        drawMotifLayer(target,pine,t+.28,.15,'near',roleBox(.63,.54,.66,.81));
       }
 
       if(page===10){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.30),breath,1);
         const orb=animatedStudyScene({...scenes[0],object:studyObject(0,'Orb'),tint:studyTint(0),rot:0,blurScale:.50});
         const butterfly=animatedStudyScene({...scenes[3],object:studyObject(1,'Butterfly'),tint:studyTint(1),rot:-12,blurScale:.42});
-        const orbBox={x:-W*.52,y:H*.18,w:W*1.34,h:H*1.16,round:false,clip:false};
-        drawMotifLayer(target,orb,t,.36,'far',orbBox);
-        drawMotifLayer(target,orb,t,1,'middle',orbBox);
-        drawMotifLayer(target,butterfly,t+1.2,.78,'near',{x:W*.52,y:-H*.05,w:W*.62,h:H*.58,round:false,clip:false});
+        const orbBox=roleBox(.30,.65,.80,.73);
+        echoTrail(orb,[.30,.65],[.73,.27],.44,.39);
+        drawMotifLayer(target,orb,t,.20,'far',roleBox(.34,.61,.88,.80));
+        drawMotifLayer(target,orb,t,.82,'middle',orbBox);
+        drawMotifLayer(target,orb,t+.28,.15,'near',roleBox(.25,.70,.73,.66));
+        drawMotifLayer(target,butterfly,t+1.2,.68,'near',roleBox(.73,.27,.49,.44));
       }
 
       if(page===11){
         drawBackground(target,mixColor(studyGround(0),studyGround(1),breath*.26),breath,1);
         const arches=[
-          {x:-.54,y:.24,w:1.16,h:1.02,tint:studyTint(0),rot:-12,layer:'far',alpha:.42,delay:0,blurScale:.88},
-          {x:-.12,y:.08,w:1.10,h:1.12,tint:studyTint(1),rot:-2,layer:'middle',alpha:.82,delay:.7,blurScale:.50},
-          {x:.34,y:-.04,w:1.02,h:1.20,tint:studyTint(2),rot:8,layer:'near',alpha:.48,delay:1.4,blurScale:.36}
+          {cx:.25,cy:.68,w:.70,h:.72,tint:studyTint(0),rot:-12,layer:'far',alpha:.28,delay:0,blurScale:.94},
+          {cx:.50,cy:.52,w:.72,h:.78,tint:studyTint(1),rot:-2,layer:'middle',alpha:.76,delay:.7,blurScale:.54},
+          {cx:.75,cy:.36,w:.66,h:.82,tint:studyTint(2),rot:8,layer:'near',alpha:.34,delay:1.4,blurScale:.40}
         ];
         arches.forEach((p,i)=>{
           const travel=Math.sin(TAU*phase+i*.72)*W*.035*settings.motion*(i===0?1:.12);
           const arch=animatedStudyScene({...scenes[i%scenes.length],object:studyObject(0,'Arch'),tint:p.tint,rot:p.rot,blurScale:p.blurScale});
-          drawMotifLayer(target,arch,t+p.delay,p.alpha,p.layer,{x:p.x*W+travel,y:p.y*H,w:p.w*W,h:p.h*H,round:false,clip:false});
+          drawMotifLayer(target,arch,t+p.delay,p.alpha,p.layer,roleBox(p.cx+travel/W,p.cy,p.w,p.h));
         });
+      }
+      const bridge=studyBridges[page];
+      if(bridge){
+        const bridgeScene={...scenes[(page+2)%scenes.length],object:bridge.object,tint:studyTint(2),rot:bridge.rot,blurScale:1.28,motionIdea:studyMotion,motionIndex:studyMotionIndex++,motionTime:t,motionAmount:.16};
+        drawMotifLayer(target,bridgeScene,t+.56,.24,'middle',roleBox(bridge.cx,bridge.cy,bridge.w,bridge.h));
       }
       drawGrain(target,false);
     }
@@ -2134,8 +2168,16 @@
       while(dreamFieldLayout.length<count){const source=dreamFieldLayout.at(-1)||createDreamFieldLayout('motif')[0],index=dreamFieldLayout.length;dreamFieldLayout.push({...JSON.parse(JSON.stringify(source)),_authorId:`field-density-${++extraLayerCounter}`,object:OBJECT_NAMES[(OBJECT_NAMES.indexOf(source.object)+index+1)%OBJECT_NAMES.length],tint:SHAPE_TINTS[index%SHAPE_TINTS.length],xOffset:(Math.random()-.5)*.24,yOffset:(Math.random()-.5)*.24,scale:.72+Math.random()*.42,rot:-18+Math.random()*36,locked:false,visible:true});}
     }
     function shuffleUnlockedLayers(){
-      const entries=activeLayerEntries(),tints=shuffledCopy(SHAPE_TINTS),objects=shuffledCopy(OBJECT_NAMES);let changed=0;
-      entries.forEach((layer,index)=>{if(layer.locked)return;setLayerProperty(layer,'object',objects[index%objects.length]);setLayerProperty(layer,'color',tints[index%tints.length]);setLayerProperty(layer,'x',clamp((layer.x||0)+(Math.random()-.5)*.18,-.7,.7));setLayerProperty(layer,'y',clamp((layer.y||0)+(Math.random()-.5)*.16,-.7,.7));setLayerProperty(layer,'scale',clamp((layer.scale||1)*(.78+Math.random()*.46),.3,2.1));setLayerProperty(layer,'rotation',clamp((layer.rotation||0)-18+Math.random()*36,-180,180));changed++;});
+      const entries=activeLayerEntries();
+      if(settings.output==='carousel'){
+        entries.forEach(layer=>{const override=collectionLayerOverride(layer.id,layer.order);if(layer.locked){override.object=layer.object;override.color=layer.color;}else for(const key of ['object','color','x','y','scale','rotation','opacity','blur','depth'])delete override[key];});
+        const colorway=settings.shapePortrait?shuffleShapeColorway(settings.shapeIndex):shuffleStudyTreatment(settings.carouselPage,true);
+        renderCreativeChange(true);commitCreativeState(`Curated composition shuffled · ${colorway}`);captureVariation(currentVariationLabel('Curated'));return;
+      }
+      const tints=shuffledCopy(SHAPE_TINTS),objectMap=new Map();let changed=0;
+      const compatibleObjects=current=>{const family=TALL_SHAPES.has(current)?'tall':WIDE_SHAPES.has(current)?'wide':'compact';return OBJECT_NAMES.filter(name=>(TALL_SHAPES.has(name)?'tall':WIDE_SHAPES.has(name)?'wide':'compact')===family);};
+      entries.forEach((layer,index)=>{if(layer.locked)return;if(!objectMap.has(layer.object))objectMap.set(layer.object,pickDifferent(compatibleObjects(layer.object),layer.object));setLayerProperty(layer,'object',objectMap.get(layer.object));setLayerProperty(layer,'color',tints[index%tints.length]);
+        setLayerProperty(layer,'x',clamp((layer.x||0)+(Math.random()-.5)*.18,-.7,.7));setLayerProperty(layer,'y',clamp((layer.y||0)+(Math.random()-.5)*.16,-.7,.7));setLayerProperty(layer,'scale',clamp((layer.scale||1)*(.78+Math.random()*.46),.3,2.1));setLayerProperty(layer,'rotation',clamp((layer.rotation||0)-18+Math.random()*36,-180,180));changed++;});
       renderCreativeChange(true);commitCreativeState(`${changed} unlocked layer${changed===1?'':'s'} shuffled`);captureVariation(currentVariationLabel('Unlocked'));
     }
     const PIECE_PLACEMENTS=[
@@ -2166,6 +2208,10 @@
       if(settings.output!=='carousel')entries=entries.filter(layer=>layer.type==='field');
       if(!entries.length){$('status').textContent='There are no unlocked visible pieces to resolve.';return;}
       const prefs=compositionFor(),symmetric=(prefs.symmetry??0)>55,layout=symmetric?RESOLVED_SYMMETRIC:RESOLVED_ASYMMETRIC;
+      if(settings.output==='carousel'&&!symmetric){
+        entries.forEach(layer=>{const override=collectionLayerOverride(layer.id,layer.order);for(const key of ['x','y','scale','rotation','opacity','blur','depth'])delete override[key];});
+        prefs.spread=50;prefs.crop=50;prefs.density=Math.min(lastCapturedLayers.length,8);renderCreativeChange(true);syncCompositionUI();commitCreativeState('Returned to the art-directed composition');captureVariation(currentVariationLabel('Resolved'));return;
+      }
       entries.slice(0,9).forEach((layer,index)=>{
         const art=layout[index%layout.length],ring=Math.floor(index/layout.length),settle=1-ring*.12;
         setLayerProperty(layer,'x',clamp(art.x+(ring?randomBetween(-.025,.025):0),-.58,.58));
