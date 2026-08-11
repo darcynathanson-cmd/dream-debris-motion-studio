@@ -1274,7 +1274,7 @@
       const W=target.canvas.width,H=target.canvas.height,index=((shapeIndex%OBJECT_NAMES.length)+OBJECT_NAMES.length)%OBJECT_NAMES.length;
       const name=OBJECT_NAMES[index],phase=((t%settings.duration)+settings.duration)%settings.duration/settings.duration,breath=.5-.5*Math.cos(TAU*phase);
       const colorway=STUDY_COLORWAYS[shapeColorwaySelections[index]%STUDY_COLORWAYS.length];
-      const ground=colorway.grounds[0],nextGround=colorway.grounds[1],tint=colorway.tints[0],echoTint=colorway.tints[1];
+      const ground=colorway.grounds[0],nextGround=colorway.grounds[1],tint=colorway.tints[0];
       drawBackground(target,mixColor(ground,nextGround,breath*.16),breath,1);
 
       let box;
@@ -1294,15 +1294,21 @@
       box={...box,w:box.w*placement.scale,h:box.h*placement.scale};
       box.x=centerX-box.w*.5;box.y=centerY-box.h*.5;
 
-      const farScene={...scenes[index%scenes.length],object:name,tint:echoTint,rot:(index%7-3)*5-7+placement.rotation,blurScale:1.35,motionIdea:null};
-      const mainScene={...scenes[index%scenes.length],object:name,tint,rot:(index%7-3)*5+placement.rotation,blurScale:.92,motionIdea:null};
-      const nearScene={...mainScene,rot:mainScene.rot+8,blurScale:1.05};
-      const echoA={...box,x:box.x-W*.12,y:box.y+H*.055};
-      const echoB={...box,x:box.x+W*.11,y:box.y-H*.045};
-      drawMotifLayer(target,farScene,t+.82,.66,'far',echoA);
-      drawMotifLayer(target,farScene,t+1.46,.28,'middle',echoB);
+      const baseRotation=(index%7-3)*5+placement.rotation,direction=index%2?1:-1,vertical=index%3-1;
+      const loop=TAU*phase,sway=(reduced?0:Math.sin(loop))*W*.018*settings.motion,float=(reduced?0:Math.cos(loop))*H*.012*settings.motion;
+      const mainScene={...scenes[index%scenes.length],object:name,tint,rot:baseRotation,blurScale:.92,motionIdea:null};
+      const echoes=[
+        {dx:-direction*W*.15+sway,dy:H*(.052+vertical*.012)+float,scale:1.03,tint:colorway.tints[1],rot:-8,blur:1.42,layer:'far',alpha:.62,delay:.72},
+        {dx:direction*W*.12-sway*.72,dy:-H*(.054+vertical*.010)-float*.55,scale:1.02,tint:colorway.tints[2],rot:6,blur:1.12,layer:'middle',alpha:.34,delay:1.28},
+        {dx:direction*W*.050+sway*.38,dy:H*(.098-vertical*.010)-float*.30,scale:.94,tint:colorway.tints[0],rot:12,blur:.80,layer:'near',alpha:.25,delay:1.84}
+      ];
+      echoes.forEach(echo=>{
+        const echoW=box.w*echo.scale,echoH=box.h*echo.scale;
+        const echoBox={...box,x:box.x+(box.w-echoW)*.5+echo.dx,y:box.y+(box.h-echoH)*.5+echo.dy,w:echoW,h:echoH};
+        const echoScene={...mainScene,tint:echo.tint,rot:baseRotation+echo.rot,blurScale:echo.blur};
+        drawMotifLayer(target,echoScene,t+echo.delay,echo.alpha,echo.layer,echoBox);
+      });
       drawMotifLayer(target,mainScene,t,1,'middle',box);
-      drawMotifLayer(target,nearScene,t+1.12,.34,'near',echoB);
       drawGrain(target,false);
     }
 
@@ -1450,7 +1456,6 @@
       let drag=null;
       canvas.addEventListener('pointerdown',e=>{
         if(settings.output!=='carousel'||!settings.shapePortrait)return;
-        if(playing)setPlaying(false);
         const p=shapePlacements[settings.shapeIndex];drag={id:e.pointerId,startX:e.clientX,startY:e.clientY,x:p.x,y:p.y};
         canvas.setPointerCapture(e.pointerId);document.body.classList.add('shape-dragging');e.preventDefault();
       });
@@ -1511,7 +1516,7 @@
       select.innerHTML=OBJECT_NAMES.map((name,index)=>`<option value="${index}">${String(index+1).padStart(2,'0')} · ${name}</option>`).join('');
       select.onchange=()=>selectShape(+select.value,0,`Shape: ${OBJECT_NAMES[+select.value]}`);
     }
-    let galleryMode='dream',galleryContent='shapes',galleryWasPlaying=false,galleryTrigger=null,galleryRenderGeneration=0;
+    let galleryMode='dream',galleryContent='shapes',galleryTrigger=null,galleryRenderGeneration=0;
     async function drawCleanGalleryShape(target,index,generation){
       const W=target.canvas.width,H=target.canvas.height,name=OBJECT_NAMES[index];
       const colorway=STUDY_COLORWAYS[shapeColorwaySelections[index]%STUDY_COLORWAYS.length],ground=colorway.grounds[0],tint=colorway.tints[0];
@@ -1546,32 +1551,31 @@
       $('shapeGalleryGrid').classList.toggle('loading',loading);
       $('shapeGalleryGrid').setAttribute('aria-busy',String(loading));
     }
-    function closeShapeGallery(resume=true){
+    function closeShapeGallery(){
       galleryRenderGeneration+=1;setGalleryLoading(false);$('shapeGallery').classList.add('hidden');document.body.classList.remove('gallery-open');
-      if(resume&&galleryWasPlaying&&!reduced)setPlaying(true);
       galleryTrigger?.focus();
     }
     async function openShapeGallery(){
       if(galleryContent!=='shapes')mountShapeGallery();
-      galleryTrigger=document.activeElement;galleryWasPlaying=playing;if(playing)setPlaying(false);
+      galleryTrigger=document.activeElement;
       $('shapeGallery').classList.remove('hidden');document.body.classList.add('gallery-open');
       $('closeShapeGallery').focus();setGalleryLoading(true);
       try{await libraryReady;await renderShapeGallery(galleryMode);}finally{if(!$('shapeGallery').classList.contains('hidden'))setGalleryLoading(false);}
     }
     async function openStudyGallery(){
       if(galleryContent!=='studies')mountStudyGallery();
-      galleryTrigger=document.activeElement;galleryWasPlaying=playing;if(playing)setPlaying(false);
+      galleryTrigger=document.activeElement;
       $('shapeGallery').classList.remove('hidden');document.body.classList.add('gallery-open');
       $('closeShapeGallery').focus();setGalleryLoading(true);
       try{await renderStudyGallery();}finally{if(!$('shapeGallery').classList.contains('hidden'))setGalleryLoading(false);}
     }
     function chooseGalleryShape(index){
-      closeShapeGallery(false);
+      closeShapeGallery();
       if(settings.output!=='carousel'){$('outputMode').value='carousel';setOutputMode('carousel');}
       selectShape(index,settings.duration*.34,`Shape: ${OBJECT_NAMES[index]} · selected from gallery`);
     }
     function chooseGalleryStudy(index){
-      closeShapeGallery(false);
+      closeShapeGallery();
       if(settings.output!=='carousel'){$('outputMode').value='carousel';setOutputMode('carousel');}
       selectStudy(index,settings.duration*.34,`Study: ${CAROUSEL_PAGES[index].name} · selected from gallery`);
     }
@@ -1596,12 +1600,12 @@
       });
     }
     function mountGalleryShell(){
-      $('openShapeGallery').onclick=openShapeGallery;$('openStudyGallery').onclick=openStudyGallery;$('closeShapeGallery').onclick=()=>closeShapeGallery(true);
+      $('openShapeGallery').onclick=openShapeGallery;$('openStudyGallery').onclick=openStudyGallery;$('closeShapeGallery').onclick=closeShapeGallery;
       $('galleryClean').onclick=()=>renderShapeGallery('clean');$('galleryDream').onclick=()=>renderShapeGallery('dream');
-      $('shapeGallery').onclick=e=>{if(e.target===$('shapeGallery'))closeShapeGallery(true);};
+      $('shapeGallery').onclick=e=>{if(e.target===$('shapeGallery'))closeShapeGallery();};
       document.addEventListener('keydown',e=>{
         if($('shapeGallery').classList.contains('hidden'))return;
-        if(e.key==='Escape')closeShapeGallery(true);
+        if(e.key==='Escape')closeShapeGallery();
         else containFocus(e,$('shapeGallery'));
       });
     }
@@ -1640,7 +1644,8 @@
       if(!open&&(returnFocus||focusWasInside))$('toggleInspector').focus();
     }
     function setOutputMode(mode){
-      setPlaying(false);settings.output=mode;currentTime=0;
+      const continuePlaying=playing;
+      settings.output=mode;currentTime=0;
       $('outputMode').value=mode;
       const carousel=mode==='carousel';$('carouselControls').classList.toggle('hidden',!carousel);$('filmShuffleControls').classList.toggle('hidden',carousel);$('sequenceSection').classList.toggle('hidden',carousel);$('bulkExportControls').classList.toggle('hidden',!carousel);$('layers').disabled=carousel;
       $('modeCollection').classList.toggle('active',carousel);$('modeFilm').classList.toggle('active',!carousel);
@@ -1650,6 +1655,7 @@
       $('inspectorTitle').textContent=carousel?'Collection controls':'Film controls';
       if(carousel)syncCollectionPanel(settings.shapePortrait?'shapes':'studies');else syncFieldModeUI();
       setShapePlacementVisible(carousel&&settings.shapePortrait);updateDurationUI();updateBadge();renderAt(0);updateTimeUI();
+      if(continuePlaying){playFrom=0;playStarted=performance.now();syncAudio(true);}
     }
 
     $('play').onclick=()=>setPlaying(!playing);
@@ -1704,28 +1710,28 @@
     function downloadCanvas(c,name){const a=document.createElement('a');a.download=name;a.href=c.toDataURL('image/png');a.click();}
     $('png').onclick=()=>{renderAt(currentTime);let name;if(settings.output!=='carousel')name=`dream-debris-film-${currentTime.toFixed(2)}s`;else if(settings.shapePortrait)name=`dream-debris-shape-${String(settings.shapeIndex+1).padStart(2,'0')}-${OBJECT_NAMES[settings.shapeIndex].toLowerCase()}`;else name=`dream-debris-study-${String(settings.carouselPage+1).padStart(2,'0')}-${CAROUSEL_PAGES[settings.carouselPage].name.toLowerCase().replace(/\s+/g,'-')}`;downloadCanvas(canvas,`${name}-${canvas.width}x${canvas.height}.png`);$('status').textContent=`PNG exported · ${canvas.width} × ${canvas.height}.`;};
     $('exportAllPages').onclick=async()=>{
-      setPlaying(false);const oldPage=settings.carouselPage,oldShape=settings.shapePortrait,oldShapeIndex=settings.shapeIndex,oldTime=currentTime;settings.shapePortrait=false;$('status').textContent=`Exporting ${CAROUSEL_PAGES.length} different studies…`;
+      const resumeAfter=playing;setPlaying(false);const oldPage=settings.carouselPage,oldShape=settings.shapePortrait,oldShapeIndex=settings.shapeIndex,oldTime=currentTime;settings.shapePortrait=false;$('status').textContent=`Exporting ${CAROUSEL_PAGES.length} different studies…`;
       for(let i=0;i<CAROUSEL_PAGES.length;i++){settings.carouselPage=i;currentTime=settings.duration*.34;renderAt(currentTime);downloadCanvas(canvas,`dream-debris-study-${String(i+1).padStart(2,'0')}-${CAROUSEL_PAGES[i].name.toLowerCase().replace(/\s+/g,'-')}.png`);await new Promise(r=>setTimeout(r,260));}
-      settings.carouselPage=oldPage;settings.shapePortrait=oldShape;settings.shapeIndex=oldShapeIndex;currentTime=oldTime;setShapePlacementVisible(oldShape);document.querySelectorAll('.page-button').forEach((b,j)=>b.classList.toggle('active',!oldShape&&j===oldPage));updateBadge();renderAt(currentTime);updateTimeUI();$('status').textContent=`All ${CAROUSEL_PAGES.length} visual studies exported · ${canvas.width} × ${canvas.height}.`;
+      settings.carouselPage=oldPage;settings.shapePortrait=oldShape;settings.shapeIndex=oldShapeIndex;currentTime=oldTime;setShapePlacementVisible(oldShape);document.querySelectorAll('.page-button').forEach((b,j)=>b.classList.toggle('active',!oldShape&&j===oldPage));updateBadge();renderAt(currentTime);updateTimeUI();$('status').textContent=`All ${CAROUSEL_PAGES.length} visual studies exported · ${canvas.width} × ${canvas.height}.`;if(resumeAfter&&!reduced)setPlaying(true);
     };
     $('exportAllShapes').onclick=async()=>{
-      setPlaying(false);const oldPage=settings.carouselPage,oldShape=settings.shapePortrait,oldShapeIndex=settings.shapeIndex,oldTime=currentTime;settings.shapePortrait=true;$('status').textContent=`Exporting every shape with blur + echo…`;
+      const resumeAfter=playing;setPlaying(false);const oldPage=settings.carouselPage,oldShape=settings.shapePortrait,oldShapeIndex=settings.shapeIndex,oldTime=currentTime;settings.shapePortrait=true;$('status').textContent=`Exporting every shape with blur + echo…`;
       for(let i=0;i<OBJECT_NAMES.length;i++){settings.shapeIndex=i;currentTime=settings.duration*.34;renderAt(currentTime);downloadCanvas(canvas,`dream-debris-shape-${String(i+1).padStart(2,'0')}-${OBJECT_NAMES[i].toLowerCase()}.png`);await new Promise(r=>setTimeout(r,260));}
-      settings.carouselPage=oldPage;settings.shapePortrait=oldShape;settings.shapeIndex=oldShapeIndex;currentTime=oldTime;$('shapeSelect').value=String(oldShapeIndex);setShapePlacementVisible(oldShape);document.querySelectorAll('.page-button').forEach((b,j)=>b.classList.toggle('active',!oldShape&&j===oldPage));updateBadge();renderAt(currentTime);updateTimeUI();$('status').textContent=`All ${OBJECT_NAMES.length} shape portraits exported · ${canvas.width} × ${canvas.height}.`;
+      settings.carouselPage=oldPage;settings.shapePortrait=oldShape;settings.shapeIndex=oldShapeIndex;currentTime=oldTime;$('shapeSelect').value=String(oldShapeIndex);setShapePlacementVisible(oldShape);document.querySelectorAll('.page-button').forEach((b,j)=>b.classList.toggle('active',!oldShape&&j===oldPage));updateBadge();renderAt(currentTime);updateTimeUI();$('status').textContent=`All ${OBJECT_NAMES.length} shape portraits exported · ${canvas.width} × ${canvas.height}.`;if(resumeAfter&&!reduced)setPlaying(true);
     };
     $('layers').onclick=async()=>{
-      setPlaying(false);const layers=['background','far','middle','near','grain','composite'];$('status').textContent='Exporting layers…';
+      const resumeAfter=playing;setPlaying(false);const layers=['background','far','middle','near','grain','composite'];$('status').textContent='Exporting layers…';
       for(const layer of layers){const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;renderAt(currentTime,layer,c.getContext('2d'));downloadCanvas(c,`dream-debris-${currentTime.toFixed(2)}s-${layer}.png`);await new Promise(r=>setTimeout(r,220));}
-      $('status').textContent=`Layer PNGs exported · ${canvas.width} × ${canvas.height}.`;
+      $('status').textContent=`Layer PNGs exported · ${canvas.width} × ${canvas.height}.`;if(resumeAfter&&!reduced)setPlaying(true);
     };
 
     $('record').onclick=async()=>{
       if(!canvas.captureStream||!window.MediaRecorder){$('status').textContent='This browser does not support canvas recording.';return;}
-      setPlaying(false);const btn=$('record');btn.disabled=true;const stream=canvas.captureStream(30);
+      const resumeAfter=playing;setPlaying(false);const btn=$('record');btn.disabled=true;const stream=canvas.captureStream(30);
       const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
       const videoBitsPerSecond=Math.round(clamp(canvas.width*canvas.height*8,12000000,24000000));
       const rec=new MediaRecorder(stream,{...(mime?{mimeType:mime}:{}),videoBitsPerSecond}),chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-      rec.onstop=()=>{const blob=new Blob(chunks,{type:mime||'video/webm'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;let stem;if(settings.output!=='carousel')stem='dream-debris-film';else if(settings.shapePortrait)stem=`dream-debris-shape-${String(settings.shapeIndex+1).padStart(2,'0')}-${OBJECT_NAMES[settings.shapeIndex].toLowerCase()}`;else stem=`dream-debris-study-${String(settings.carouselPage+1).padStart(2,'0')}-${CAROUSEL_PAGES[settings.carouselPage].name.toLowerCase().replace(/\s+/g,'-')}`;a.download=`${stem}-${settings.duration}s-${canvas.width}x${canvas.height}.webm`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);btn.disabled=false;btn.textContent='Record current loop · WebM';$('status').textContent=`WebM exported · ${canvas.width} × ${canvas.height} · high bitrate.`;currentTime=0;renderAt(0);updateTimeUI();};
+      rec.onstop=()=>{const blob=new Blob(chunks,{type:mime||'video/webm'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;let stem;if(settings.output!=='carousel')stem='dream-debris-film';else if(settings.shapePortrait)stem=`dream-debris-shape-${String(settings.shapeIndex+1).padStart(2,'0')}-${OBJECT_NAMES[settings.shapeIndex].toLowerCase()}`;else stem=`dream-debris-study-${String(settings.carouselPage+1).padStart(2,'0')}-${CAROUSEL_PAGES[settings.carouselPage].name.toLowerCase().replace(/\s+/g,'-')}`;a.download=`${stem}-${settings.duration}s-${canvas.width}x${canvas.height}.webm`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);btn.disabled=false;btn.textContent='Record current loop · WebM';$('status').textContent=`WebM exported · ${canvas.width} × ${canvas.height} · high bitrate.`;currentTime=0;renderAt(0);updateTimeUI();if(resumeAfter&&!reduced)setPlaying(true);};
       rec.start(250);const start=performance.now();$('status').textContent='Recording in real time…';
       function capture(now){const elapsed=(now-start)/1000;currentTime=Math.min(elapsed,settings.duration-1/30);renderAt(currentTime);updateTimeUI();btn.textContent=`Recording ${Math.min(100,Math.round(elapsed/settings.duration*100))}%`;
         if(elapsed<settings.duration)requestAnimationFrame(capture);else{renderAt(settings.duration-1/30);setTimeout(()=>rec.stop(),120);}}
@@ -1738,7 +1744,8 @@
     libraryReady=preload();libraryReady.then(failed=>{
       renderAt(currentTime);
       $('status').textContent=failed?`${failed} shape treatment${failed===1?'':'s'} could not be prepared. The rest of the studio is ready.`:'';
-      if(location.hash==='#shapes')openShapeGallery();else if(!reduced)setPlaying(true);
+      if(!reduced)setPlaying(true);
+      if(location.hash==='#shapes')openShapeGallery();
     });
   </script>
 </body>
